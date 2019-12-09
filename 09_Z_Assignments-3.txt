@@ -1,0 +1,148 @@
+Adding Maps and Lookups in your Terraform files
+The lab files can be found @ https://github.com/satyensingh/terraform-assignment-resources.git
+In the repo you will find main.tf, outputs.tf, and variables.tf.
+Add a new variable called env. Set a description to “env: dev or prod”.
+Convert the type from image_name to map.
+
+Change the default to use key/value pairs. Set dev to ghost:latest and prod to ghost:alpine.
+
+Convert container_name to a map. Change the default to use key/value pairs. Set dev to blog_dev and prod to blog_prod.
+
+Convert ext_port to a map. Change the default to use key/value pairs. Set dev to 8080 and prod to 80.
+
+Now initialize Terraform.
+
+Setup the Development environment
+Create a workspace called dev.
+Generate a Terraform plan. Output the plan and call it tfdev_plan. Pass in a variable called env and set it to dev.
+Apply tfdev_plan.
+
+Setup the Production environment
+Create a workspace called prod.
+Generate a Terraform plan. Output the plan and call it tfprod_plan. Pass in a variable called env and set it to prod.
+Apply tfprod_plan.
+
+Verify both environments work
+Open a browser and navigate to the public IP. This should pull up the production environment.
+Open a browser tab and navigate to the public IP on port 8080. This should pull up the development environment.
+
+------------------------------------------------------------------------------------------------------------------------------
+step1:-
+-->cat outputs.tf
+
+#Output the IP Address of the Container
+output "ip_address" {
+  value       = "${docker_container.container_id.ip_address}"
+  description = "The IP for the container."
+}
+
+output "container_name" {
+  value       = "${docker_container.container_id.name}"
+  description = "The name of the container."
+}
+
+-->cat varible.tf
+
+#Define variables
+variable "image_name" {
+  type = map
+  description = "Image for container."
+  default     = {
+        dev = "ghost:latest"
+        prod = "ghost:alpine"
+     }
+}
+
+variable "container_name" {
+  type = map
+  description = "Name of the container."
+  default     = {
+        dev = "blog_dev"
+        prod = "blog_prod"
+     }
+}
+
+variable "ext_port" {
+  type = map
+  description = "External port for container."
+  default     = {
+        dev = "8088"
+        prod = "88"
+     }
+}
+
+variable "env" {
+  description = "env: dev or prod"
+  default     = "dev"
+}
+
+-->cat main.tf
+
+# Download the latest Ghost Image
+resource "docker_image" "image_id" {
+  name = var.image_name["${var.env}"]
+
+}
+
+# Start the Container
+resource "docker_container" "container_id" {
+  name  = var.container_name["${var.env}"]
+  image = docker_image.image_id.latest
+  ports {
+    internal = "2368"
+    external = var.ext_port["${var.env}"]
+  }
+}
+
+step2:-Create a workspace called dev
+
+ubuntu@ip-172-31-43-168:~$ terraform workspace new dev
+Created and switched to workspace "dev"!
+
+step3:-Generate a Terraform plan. Output the plan and call it tfdev_plan. Pass in a variable called env and set it to dev.
+ubuntu@ip-172-31-43-168:~$ terraform plan -out=tfdev_plan -var 'env=dev'
+
+step4:-Apply tfdev_plan.
+terraform apply "tfdev_plan"
+
+proof:-
+
+ubuntu@ip-172-31-43-168:~$ docker ps -a
+CONTAINER ID        IMAGE                                         COMMAND                  CREATED             STATUS                        PORTS                    NAMES
+695b8e387286        eadda45eb5e4                                  "docker-entrypoint.s…"   18 seconds ago      Up 16 seconds                 0.0.0.0:8088->2368/tcp   blog_dev
+
+REPOSITORY                              TAG                 IMAGE ID            CREATED             SIZE
+ghost                                   latest              eadda45eb5e4        4 days ago          394MB
+
+step5:-Create a workspace called prod.
+ubuntu@ip-172-31-43-168:~$ terraform workspace new prod
+Created and switched to workspace "prod"!
+
+step6:-Generate a Terraform plan. Output the plan and call it tfprod_plan. Pass in a variable called env and set it to prod.
+ubuntu@ip-172-31-43-168:~$ terraform plan -out=tfprod_plan -var 'env=prod'
+
+step7:-Apply tfprod_plan.
+ubuntu@ip-172-31-43-168:~$ terraform apply "tfprod_plan"
+
+proof:-
+docker ps -a
+
+CONTAINER ID        IMAGE                                         COMMAND                  CREATED             STATUS                        PORTS                    NAMES
+261707dcfe79        7a562dfa21a3                                  "docker-entrypoint.s…"   38 seconds ago      Up 37 seconds                 0.0.0.0:88->2368/tcp     blog_prod
+
+docker images
+
+REPOSITORY                              TAG                 IMAGE ID            CREATED             SIZE
+ghost                                   alpine              7a562dfa21a3        4 days ago          327MB
+
+testing:-
+
+After hitting  http://18.189.44.250:8088/ URL in browser i am getting ghost web page.(DEV Environment)
+
+Ater hitting http://18.189.44.250:88/ URL in browser, i am getting ghost web page (PROD Environment)
+
+
+
+
+
+
